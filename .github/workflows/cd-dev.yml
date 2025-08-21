@@ -1,0 +1,33 @@
+name: CD-Dev
+on:
+  push:
+    branches: [ dev ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_DEV }}" > ~/.kube/config
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Deploy to Dev
+        run: |
+          helm upgrade --install app ./deploy/helm/app -n app --create-namespace             -f deploy/helm/values-dev.yaml             --set imageRegistry=${{ secrets.REGISTRY }}             --set frontend.image.tag=dev             --set backend.image.tag=dev
+
+      - name: Post-deploy smoke test
+        run: |
+          kubectl -n app rollout status deploy/backend --timeout=180s
+          kubectl -n app rollout status deploy/frontend --timeout=180s

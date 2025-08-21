@@ -1,0 +1,9 @@
+imageRegistry: "YOUR_REGISTRY"
+frontend:
+  image: { repository: frontend, tag: "dev" }
+  ingress: { enabled: false }
+backend:
+  image: { repository: backend, tag: "dev" }
+  ingress: { enabled: false }
+postgres:
+  enabled: false

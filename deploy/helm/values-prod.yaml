@@ -1,0 +1,13 @@
+imageRegistry: "YOUR_REGISTRY"
+frontend:
+  image: { repository: frontend, tag: "prod" }
+  ingress:
+    enabled: true
+    host: "frontend.prod.example.com"
+backend:
+  image: { repository: backend, tag: "prod" }
+  ingress:
+    enabled: true
+    host: "api.prod.example.com"
+postgres:
+  enabled: false

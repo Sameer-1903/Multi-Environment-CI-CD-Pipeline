@@ -1,0 +1,30 @@
+imageRegistry: "YOUR_REGISTRY" # e.g., docker.io/YOUR_DOCKERHUB_USERNAME or ECR URI
+
+frontend:
+  image:
+    repository: frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+  ingress:
+    enabled: true
+    host: frontend.example.com
+
+backend:
+  image:
+    repository: backend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  ingress:
+    enabled: true
+    host: api.example.com
+
+postgres:
+  enabled: false  # Use managed DB in prod; enable only for dev testing

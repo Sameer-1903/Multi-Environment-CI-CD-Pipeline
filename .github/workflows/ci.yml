@@ -1,0 +1,63 @@
+name: CI
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+jobs:
+  build_test_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Lint (frontend)
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Lint (backend)
+        working-directory: backend
+        run: npm run lint
+
+      - name: Tests (backend)
+        working-directory: backend
+        run: npm test
+
+      - name: Build Docker images
+        run: |
+          docker build -t ${{ secrets.REGISTRY }}/frontend:${{ github.sha }} ./frontend
+          docker build -t ${{ secrets.REGISTRY }}/backend:${{ github.sha }} ./backend
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ secrets.REGISTRY }}/backend:${{ github.sha }}
+          format: 'table'
+          exit-code: '0'
+
+      - name: Login & Push
+        if: github.event_name != 'pull_request'
+        run: |
+          echo ${{ secrets.REGISTRY_PASSWORD }} | docker login ${{ secrets.REGISTRY_HOST }} -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
+          docker push ${{ secrets.REGISTRY }}/frontend:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY }}/backend:${{ github.sha }}
+
+      - name: Set image tags for branches
+        if: github.ref_name == 'dev' || github.ref_name == 'main'
+        run: |
+          docker tag ${{ secrets.REGISTRY }}/frontend:${{ github.sha }} ${{ secrets.REGISTRY }}/frontend:${{ github.ref_name }}
+          docker tag ${{ secrets.REGISTRY }}/backend:${{ github.sha }} ${{ secrets.REGISTRY }}/backend:${{ github.ref_name }}
+          docker push ${{ secrets.REGISTRY }}/frontend:${{ github.ref_name }}
+          docker push ${{ secrets.REGISTRY }}/backend:${{ github.ref_name }}

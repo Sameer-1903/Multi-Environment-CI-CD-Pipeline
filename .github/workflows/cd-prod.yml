@@ -1,0 +1,49 @@
+name: CD-Prod
+on:
+  workflow_dispatch:
+    inputs:
+      imageTag:
+        description: "Image tag to deploy (typically main or a release tag)"
+        required: true
+        default: "main"
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Manual approval gate
+        run: echo "Proceeding with prod deployment of tag ${{ inputs.imageTag }}"
+  deploy:
+    needs: approve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      - name: Configure kubeconfig (prod)
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_PROD }}" > ~/.kube/config
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Blue/Green prep (create green)
+        run: |
+          helm upgrade --install app-green ./deploy/helm/app -n app --create-namespace             -f deploy/helm/values-prod.yaml             --set imageRegistry=${{ secrets.REGISTRY }}             --set frontend.image.tag=${{ inputs.imageTag }}             --set backend.image.tag=${{ inputs.imageTag }}
+          kubectl -n app rollout status deploy/backend --timeout=300s
+          kubectl -n app rollout status deploy/frontend --timeout=300s
+
+      - name: Smoke test
+        run: |
+          echo "Add curl tests against Ingress/Service here"
+
+      - name: Switch traffic (example using label selector)
+        run: |
+          echo "In real setup, swap Ingress/Service to point to green. This is a placeholder."
+
+      - name: Notify
+        run: echo "Deployment complete"
